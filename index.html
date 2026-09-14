@@ -3,21 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebAR Coursework</title>
-</head>
-<body>
-    <h1>WebAR Coursework</h1>
 
-    <ul>
-        <li>
-            <a href="task1-model-viewer/">
-                Задание 1: model-viewer
-            </a>
-        </li>
-        <li>
-            <a href="task2-mindar/">
-                Задание 2: MindAR
-            </a>
-        </li>
-    </ul>
+    <title>MindAR Image Tracking</title>
+
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+</head>
+
+<body>
+    <a-scene
+        mindar-image="imageTargetSrc: targets/target.mind; autoStart: true;"
+        embedded
+        color-space="sRGB"
+        renderer="colorManagement: true"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+
+        <a-assets>
+            <a-asset-item
+                id="pasha-model"
+                src="models/Pasha.glb">
+            </a-asset-item>
+        </a-assets>
+
+        <a-camera
+            position="0 0 0"
+            look-controls="enabled: false">
+        </a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0">
+            <a-gltf-model
+                src="#pasha-model"
+                position="0 0 0"
+                rotation="0 0 0"
+                scale="0.5 0.5 0.5">
+            </a-gltf-model>
+        </a-entity>
+    </a-scene>
 </body>
+</html>
