@@ -4,62 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>MindAR Image Tracking</title>
-
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <title>WebAR Coursework</title>
 
     <style>
-        html,
         body {
             margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            color: #222;
         }
 
-        a-scene {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        .container {
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            background: white;
+            padding: 40px 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            margin-bottom: 30px;
+        }
+
+        .practice-link {
+            display: block;
+            margin: 15px 0;
+            padding: 18px;
+            border-radius: 10px;
+            background: #333;
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            transition: background 0.2s;
+        }
+
+        .practice-link:hover {
+            background: #555;
         }
     </style>
 </head>
 
 <body>
-    <a-scene
-        mindar-image="imageTargetSrc: ./task2-mindar/targets/target.mind; autoStart: true;"
-        embedded
-        color-space="sRGB"
-        renderer="colorManagement: true"
-        vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: false">
+    <main class="container">
+        <h1>WebAR Coursework</h1>
 
-        <a-assets>
-            <a-asset-item
-                id="pasha-model"
-                src="./task2-mindar/models/Pasha.glb">
-            </a-asset-item>
-        </a-assets>
+        <a
+            class="practice-link"
+            href="task1-model-viewer/">
+            Практика 1: 3D-модель и AR
+        </a>
 
-        <a-camera
-            position="0 0 0"
-            look-controls="enabled: false">
-        </a-camera>
-
-        <a-entity mindar-image-target="targetIndex: 0">
-
-            <a-gltf-model
-                src="#pasha-model"
-                position="0 0 0"
-                rotation="0 0 0"
-                scale="0.5 0.5 0.5">
-            </a-gltf-model>
-
-        </a-entity>
-    </a-scene>
+        <a
+            class="practice-link"
+            href="task2-mindar/">
+            Практика 2: MindAR Image Tracking
+        </a>
+    </main>
 </body>
 </html>

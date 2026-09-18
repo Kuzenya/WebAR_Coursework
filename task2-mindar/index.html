@@ -6,24 +6,42 @@
 
     <title>MindAR Image Tracking</title>
 
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        a-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
 
 <body>
     <a-scene
-        mindar-image="imageTargetSrc: targets/target.mind; autoStart: true;"
+        mindar-image="imageTargetSrc: ./targets/target.mind; autoStart: true;"
         embedded
         color-space="sRGB"
-        renderer="colorManagement: true, physicallyCorrectLights"
+        renderer="colorManagement: true"
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false">
 
         <a-assets>
             <a-asset-item
                 id="pasha-model"
-                src="models/Pasha.glb">
+                src="./models/Pasha.glb">
             </a-asset-item>
         </a-assets>
 
@@ -38,7 +56,7 @@
                 src="#pasha-model"
                 position="0 0 0"
                 rotation="0 0 0"
-                scale="0.2 0.2 0.2">
+                scale="1.5 1.5 1.5">
             </a-gltf-model>
 
         </a-entity>
