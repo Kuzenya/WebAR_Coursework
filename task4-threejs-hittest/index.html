@@ -1,15 +1,17 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <title>Практика 4 | Three.js + WebXR Hit Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Практика 4: Three.js Hit Test</title>
 
     <style>
-        html, body {
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
             margin: 0;
             padding: 0;
             width: 100%;
@@ -26,14 +28,36 @@
             height: 100%;
         }
 
-        #info {
+        #home {
             position: fixed;
             top: 12px;
+            left: 12px;
+            z-index: 20;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: rgba(40, 40, 40, 0.95);
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #home:active {
+            background: #444;
+        }
+
+        #info {
+            position: fixed;
+            top: 66px;
             left: 12px;
             right: 12px;
             z-index: 2;
             padding: 12px 14px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.72);
             border-radius: 10px;
             font-size: 14px;
             line-height: 1.5;
@@ -45,18 +69,47 @@
             margin-top: 5px;
         }
 
-        #home {
-            position: fixed;
-            bottom: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 3;
-            padding: 12px 18px;
-            border-radius: 10px;
-            background: #333;
-            color: white;
-            text-decoration: none;
-            font-size: 14px;
+        /* Кнопка запуска AR */
+        #ARButton {
+            position: fixed !important;
+            left: 50% !important;
+            right: auto !important;
+            top: auto !important;
+            bottom: 20px !important;
+            transform: translateX(-50%) !important;
+            z-index: 10 !important;
+
+            width: auto !important;
+            min-width: 170px !important;
+            height: 48px !important;
+            padding: 0 20px !important;
+
+            border: none !important;
+            border-radius: 12px !important;
+            background: #2878ff !important;
+            color: white !important;
+
+            font-family: Arial, sans-serif !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            cursor: pointer;
+        }
+
+        #ARButton:hover {
+            background: #1d65dc !important;
+        }
+
+        @media (max-width: 480px) {
+            #info {
+                font-size: 13px;
+                padding: 10px 12px;
+            }
+
+            #ARButton {
+                bottom: 24px !important;
+                min-width: 180px !important;
+                height: 50px !important;
+            }
         }
     </style>
 
@@ -71,302 +124,218 @@
 </head>
 
 <body>
+    <a id="home" href="../index.html">← К заданиям</a>
 
     <div id="info">
-        <strong>Практика 4: Three.js + WebXR Hit Test</strong>
-        <div>Наведите камеру на пол или стол.</div>
-        <div>Когда появится зелёное кольцо, коснитесь экрана.</div>
-        <div>Фигуры будут чередоваться: крестик, нолик, крестик...</div>
+        <strong>Практика 4: размещение объектов в AR</strong>
+        <div>
+            Наведи камеру на поверхность. Когда появится кольцо,
+            коснись экрана, чтобы разместить объект.
+        </div>
+        <div>Объекты размещаются по очереди: крестик, нолик, крестик, нолик.</div>
         <div id="status">Загрузка моделей...</div>
     </div>
-
-    <a id="home" href="../index.html">← К заданиям</a>
 
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/addons/webxr/ARButton.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        let scene;
-        let camera;
-        let renderer;
-        let reticle;
-        let hitTestSource = null;
-        let hitTestSourceRequested = false;
+        const statusElement = document.getElementById('status');
+
+        // Сцена
+        const scene = new THREE.Scene();
+        scene.background = null;
+
+        // Камера
+        const camera = new THREE.PerspectiveCamera(
+            70,
+            window.innerWidth / window.innerHeight,
+            0.01,
+            20
+        );
+
+        // Рендерер
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true
+        });
+
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        renderer.xr.setReferenceSpaceType('local-floor');
+
+        document.body.appendChild(renderer.domElement);
+
+        // Освещение
+        const ambientLight = new THREE.HemisphereLight(
+            0xffffff,
+            0xbbbbcc,
+            2
+        );
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(1, 3, 2);
+        scene.add(directionalLight);
+
+        // Кнопка запуска AR
+        const arButton = ARButton.createButton(renderer, {
+            requiredFeatures: ['hit-test']
+        });
+
+        document.body.appendChild(arButton);
+
+        // Кольцо показывает место, куда будет установлен объект
+        const reticleGeometry = new THREE.RingGeometry(0.08, 0.11, 32);
+        reticleGeometry.rotateX(-Math.PI / 2);
+
+        const reticleMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ff66
+        });
+
+        const reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
+        reticle.matrixAutoUpdate = false;
+        reticle.visible = false;
+        scene.add(reticle);
+
+        // Модели
+        const loader = new GLTFLoader();
 
         let crossModel = null;
         let circleModel = null;
         let placementCount = 0;
 
-        const statusElement = document.getElementById('status');
-        const loader = new GLTFLoader();
+        function prepareModel(model) {
+            model.updateMatrixWorld(true);
 
-        function setStatus(message) {
-            statusElement.textContent = message;
-        }
+            // Находим максимальный размер модели и приводим её к удобному масштабу.
+            const box = new THREE.Box3().setFromObject(model);
+            const size = new THREE.Vector3();
+            box.getSize(size);
 
-        init();
+            const maxDimension = Math.max(size.x, size.y, size.z);
 
-        function init() {
-            // Создаём сцену
-            scene = new THREE.Scene();
-
-            // Создаём камеру
-            camera = new THREE.PerspectiveCamera(
-                70,
-                window.innerWidth / window.innerHeight,
-                0.01,
-                20
-            );
-
-            // Освещение
-            const hemisphereLight = new THREE.HemisphereLight(
-                0xffffff,
-                0xbbbbff,
-                2
-            );
-            scene.add(hemisphereLight);
-
-            const directionalLight = new THREE.DirectionalLight(
-                0xffffff,
-                1.5
-            );
-            directionalLight.position.set(1, 3, 2);
-            scene.add(directionalLight);
-
-            // Настраиваем WebGL
-            renderer = new THREE.WebGLRenderer({
-                antialias: true,
-                alpha: true
-            });
-
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
-            renderer.xr.setReferenceSpaceType('local-floor');
-
-            document.body.appendChild(renderer.domElement);
-
-            // Кнопка запуска AR
-            const arButton = ARButton.createButton(renderer, {
-                requiredFeatures: ['hit-test']
-            });
-
-            document.body.appendChild(arButton);
-
-            // Маркер поверхности в виде зелёного кольца
-            const ringGeometry = new THREE.RingGeometry(
-                0.08,
-                0.12,
-                32
-            );
-
-            ringGeometry.rotateX(-Math.PI / 2);
-
-            const ringMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ff88,
-                side: THREE.DoubleSide
-            });
-
-            reticle = new THREE.Mesh(ringGeometry, ringMaterial);
-            reticle.matrixAutoUpdate = false;
-            reticle.visible = false;
-
-            scene.add(reticle);
-
-            // Контроллер получает нажатия пользователя
-            const controller = renderer.xr.getController(0);
-            controller.addEventListener('select', placeObject);
-            scene.add(controller);
-
-            // Загружаем крестик
-            loader.load(
-                './models/cross.glb',
-                (gltf) => {
-                    crossModel = gltf.scene;
-                    setStatus('Крестик загружен. Загружаем нолик...');
-                    checkModelsLoaded();
-                },
-                undefined,
-                (error) => {
-                    console.error('Ошибка загрузки cross.glb:', error);
-                    setStatus('Ошибка загрузки models/cross.glb');
-                }
-            );
-
-            // Загружаем нолик
-            loader.load(
-                './models/circle.glb',
-                (gltf) => {
-                    circleModel = gltf.scene;
-                    setStatus('Нолик загружен.');
-                    checkModelsLoaded();
-                },
-                undefined,
-                (error) => {
-                    console.error('Ошибка загрузки circle.glb:', error);
-                    setStatus('Ошибка загрузки models/circle.glb');
-                }
-            );
-
-            // Начало AR-сессии
-            renderer.xr.addEventListener('sessionstart', () => {
-                hitTestSourceRequested = false;
-                hitTestSource = null;
-                reticle.visible = false;
-
-                setStatus(
-                    'AR запущен. Направьте камеру на пол или стол.'
-                );
-            });
-
-            // Завершение AR-сессии
-            renderer.xr.addEventListener('sessionend', () => {
-                if (hitTestSource) {
-                    hitTestSource.cancel();
-                }
-
-                hitTestSource = null;
-                hitTestSourceRequested = false;
-                reticle.visible = false;
-
-                setStatus(
-                    'AR завершён. Нажмите кнопку AR для повторного запуска.'
-                );
-            });
-
-            window.addEventListener('resize', onWindowResize);
-
-            renderer.setAnimationLoop(render);
-        }
-
-        function checkModelsLoaded() {
-            if (crossModel && circleModel) {
-                setStatus(
-                    'Обе модели загружены. Можно запускать AR.'
-                );
+            if (maxDimension > 0) {
+                const targetSize = 0.15;
+                const scaleFactor = targetSize / maxDimension;
+                model.scale.multiplyScalar(scaleFactor);
             }
+
+            model.updateMatrixWorld(true);
+            return model;
         }
 
-        // Размещаем крестик или нолик на найденной поверхности
+        function loadModel(path) {
+            return new Promise((resolve, reject) => {
+                loader.load(
+                    path,
+                    (gltf) => resolve(prepareModel(gltf.scene)),
+                    undefined,
+                    (error) => reject(error)
+                );
+            });
+        }
+
+        Promise.all([
+            loadModel('./models/cross.glb'),
+            loadModel('./models/circle.glb')
+        ])
+        .then(([cross, circle]) => {
+            crossModel = cross;
+            circleModel = circle;
+
+            statusElement.textContent =
+                'Модели загружены. Нажми кнопку запуска AR.';
+        })
+        .catch((error) => {
+            console.error('Ошибка загрузки моделей:', error);
+            statusElement.textContent =
+                'Не удалось загрузить модели. Проверь файлы cross.glb и circle.glb в папке models.';
+        });
+
+        // Размещаем крестик или нолик при касании экрана
         function placeObject() {
             if (!reticle.visible) {
-                setStatus(
-                    'Поверхность не найдена. Медленно перемещайте телефон.'
-                );
+                statusElement.textContent =
+                    'Поверхность не найдена. Медленно направь камеру на пол или стол.';
                 return;
             }
 
-            const isCrossTurn = placementCount % 2 === 0;
-            const sourceModel = isCrossTurn
-                ? crossModel
-                : circleModel;
-
-            if (!sourceModel) {
-                setStatus(
-                    'Модели ещё загружаются. Подождите немного.'
-                );
+            if (!crossModel || !circleModel) {
+                statusElement.textContent = 'Модели ещё загружаются.';
                 return;
             }
 
-            // Клонируем модель, чтобы каждый объект был отдельным
+            const sourceModel =
+                placementCount % 2 === 0 ? crossModel : circleModel;
+
             const placedModel = sourceModel.clone(true);
 
-            // Копируем позицию и ориентацию маркера
             reticle.matrix.decompose(
                 placedModel.position,
                 placedModel.quaternion,
                 placedModel.scale
             );
 
-            // Масштаб моделей.
-            // Измени 0.5, если модели слишком большие или маленькие.
-            placedModel.scale.multiplyScalar(0.5);
-
-            // Добавляем объект в сцену.
-            // Он больше не связан с маркером.
             scene.add(placedModel);
 
             placementCount++;
 
-            const placedName = isCrossTurn ? 'крестик' : 'нолик';
-            const nextName = placementCount % 2 === 0
-                ? 'крестик'
-                : 'нолик';
+            const nextObject =
+                placementCount % 2 === 0 ? 'нолик' : 'крестик';
 
-            setStatus(
-                `Размещён ${placedName}. Следующим будет ${nextName}.`
-            );
+            statusElement.textContent =
+                `Размещено объектов: ${placementCount}. Следующий объект: ${nextObject}.`;
         }
 
-        // Получение результатов Hit Test
+        // Контроллер получает событие касания в AR
+        const controller = renderer.xr.getController(0);
+        controller.addEventListener('select', placeObject);
+        scene.add(controller);
+
+        // Hit Test
+        let hitTestSource = null;
+        let hitTestSourceRequested = false;
+
         function render(timestamp, frame) {
             if (frame) {
                 const session = renderer.xr.getSession();
-                const referenceSpace = renderer.xr.getReferenceSpace();
 
-                if (!hitTestSourceRequested && session) {
-                    hitTestSourceRequested = true;
-
+                if (!hitTestSourceRequested) {
                     session.requestReferenceSpace('viewer')
-                        .then((viewerSpace) => {
+                        .then((referenceSpace) => {
                             return session.requestHitTestSource({
-                                space: viewerSpace
+                                space: referenceSpace
                             });
                         })
                         .then((source) => {
-                            if (renderer.xr.getSession() === session) {
-                                hitTestSource = source;
-                            } else {
-                                source.cancel();
-                            }
+                            hitTestSource = source;
                         })
                         .catch((error) => {
-                            console.error('Hit Test error:', error);
-
-                            setStatus(
-                                'Не удалось запустить Hit Test. ' +
-                                'Проверьте поддержку WebXR.'
-                            );
-
-                            hitTestSourceRequested = false;
+                            console.error('Ошибка Hit Test:', error);
+                            statusElement.textContent =
+                                'Не удалось запустить поиск поверхностей.';
                         });
+
+                    hitTestSourceRequested = true;
                 }
 
-                if (hitTestSource && referenceSpace) {
-                    const results = frame.getHitTestResults(
-                        hitTestSource
-                    );
+                if (hitTestSource) {
+                    const referenceSpace = renderer.xr.getReferenceSpace();
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
 
-                    if (results.length > 0) {
-                        const hit = results[0];
+                    if (hitTestResults.length > 0) {
+                        const hit = hitTestResults[0];
                         const pose = hit.getPose(referenceSpace);
 
                         if (pose) {
                             reticle.visible = true;
-
-                            reticle.matrix.fromArray(
-                                pose.transform.matrix
-                            );
-
-                            if (crossModel && circleModel) {
-                                const nextName =
-                                    placementCount % 2 === 0
-                                        ? 'крестик'
-                                        : 'нолик';
-
-                                setStatus(
-                                    `Поверхность найдена. ` +
-                                    `Следующий объект: ${nextName}.`
-                                );
-                            }
+                            reticle.matrix.fromArray(pose.transform.matrix);
                         }
                     } else {
                         reticle.visible = false;
-
-                        setStatus(
-                            'Ищем поверхность. Медленно перемещайте телефон.'
-                        );
                     }
                 }
             }
@@ -374,18 +343,22 @@
             renderer.render(scene, camera);
         }
 
-        function onWindowResize() {
-            camera.aspect =
-                window.innerWidth / window.innerHeight;
+        renderer.setAnimationLoop(render);
 
+        // Подгоняем размер при изменении окна
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
-            renderer.setSize(
-                window.innerWidth,
-                window.innerHeight
-            );
-        }
+        // Сбрасываем состояние Hit Test после завершения AR-сессии
+        renderer.xr.addEventListener('sessionend', () => {
+            hitTestSourceRequested = false;
+            hitTestSource = null;
+            reticle.visible = false;
+        });
     </script>
-
 </body>
 </html>
+
