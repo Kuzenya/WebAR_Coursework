@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MindAR Face Tracking</title>
+
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-face-aframe.prod.js"></script>
+
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        a-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+<a-scene
+    mindar-face
+    embedded
+    color-space="sRGB"
+    renderer="colorManagement: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+        <a-asset-item
+            id="glasses-model"
+            src="./models/glasses.glb">
+        </a-asset-item>
+    </a-assets>
+
+    <a-camera
+        active="false"
+        position="0 0 0">
+    </a-camera>
+
+    <a-entity mindar-face-target="anchorIndex: 168">
+
+        <a-gltf-model
+            src="#glasses-model"
+            position="0 0 0"
+            rotation="0 0 0"
+            scale="0.01 0.01 0.01">
+        </a-gltf-model>
+
+    </a-entity>
+
+</a-scene>
+
+</body>
+</html>
