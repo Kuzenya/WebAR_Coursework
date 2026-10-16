@@ -28,31 +28,9 @@
             height: 100%;
         }
 
-        #home {
-            position: fixed;
-            top: 12px;
-            left: 12px;
-            z-index: 20;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 42px;
-            padding: 10px 14px;
-            border-radius: 8px;
-            background: rgba(40, 40, 40, 0.95);
-            color: white;
-            text-decoration: none;
-            font-size: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        #home:active {
-            background: #444;
-        }
-
         #info {
             position: fixed;
-            top: 66px;
+            top: 12px;
             left: 12px;
             right: 12px;
             z-index: 2;
@@ -124,8 +102,6 @@
 </head>
 
 <body>
-    <a id="home" href="../index.html">← К заданиям</a>
-
     <div id="info">
         <strong>Практика 4: размещение объектов в AR</strong>
         <div>
@@ -143,9 +119,8 @@
 
         const statusElement = document.getElementById('status');
 
-        // Сцена
+        // Создание сцены
         const scene = new THREE.Scene();
-        scene.background = null;
 
         // Камера
         const camera = new THREE.PerspectiveCamera(
@@ -187,7 +162,7 @@
 
         document.body.appendChild(arButton);
 
-        // Кольцо показывает место, куда будет установлен объект
+        // Индикатор найденной поверхности
         const reticleGeometry = new THREE.RingGeometry(0.08, 0.11, 32);
         reticleGeometry.rotateX(-Math.PI / 2);
 
@@ -200,7 +175,7 @@
         reticle.visible = false;
         scene.add(reticle);
 
-        // Модели
+        // Загрузка моделей
         const loader = new GLTFLoader();
 
         let crossModel = null;
@@ -208,9 +183,6 @@
         let placementCount = 0;
 
         function prepareModel(model) {
-            model.updateMatrixWorld(true);
-
-            // Находим максимальный размер модели и приводим её к удобному масштабу.
             const box = new THREE.Box3().setFromObject(model);
             const size = new THREE.Vector3();
             box.getSize(size);
@@ -219,11 +191,9 @@
 
             if (maxDimension > 0) {
                 const targetSize = 0.15;
-                const scaleFactor = targetSize / maxDimension;
-                model.scale.multiplyScalar(scaleFactor);
+                model.scale.multiplyScalar(targetSize / maxDimension);
             }
 
-            model.updateMatrixWorld(true);
             return model;
         }
 
@@ -233,7 +203,7 @@
                     path,
                     (gltf) => resolve(prepareModel(gltf.scene)),
                     undefined,
-                    (error) => reject(error)
+                    reject
                 );
             });
         }
@@ -251,15 +221,16 @@
         })
         .catch((error) => {
             console.error('Ошибка загрузки моделей:', error);
+
             statusElement.textContent =
-                'Не удалось загрузить модели. Проверь файлы cross.glb и circle.glb в папке models.';
+                'Ошибка загрузки моделей. Проверь файлы cross.glb и circle.glb в папке models.';
         });
 
-        // Размещаем крестик или нолик при касании экрана
+        // Размещение объектов по очереди
         function placeObject() {
             if (!reticle.visible) {
                 statusElement.textContent =
-                    'Поверхность не найдена. Медленно направь камеру на пол или стол.';
+                    'Поверхность не найдена. Направь камеру на пол или стол.';
                 return;
             }
 
@@ -280,7 +251,6 @@
             );
 
             scene.add(placedModel);
-
             placementCount++;
 
             const nextObject =
@@ -290,12 +260,12 @@
                 `Размещено объектов: ${placementCount}. Следующий объект: ${nextObject}.`;
         }
 
-        // Контроллер получает событие касания в AR
+        // Обработка касания в AR
         const controller = renderer.xr.getController(0);
         controller.addEventListener('select', placeObject);
         scene.add(controller);
 
-        // Hit Test
+        // Поиск поверхностей с помощью Hit Test
         let hitTestSource = null;
         let hitTestSourceRequested = false;
 
@@ -345,14 +315,14 @@
 
         renderer.setAnimationLoop(render);
 
-        // Подгоняем размер при изменении окна
+        // Изменение размеров окна
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Сбрасываем состояние Hit Test после завершения AR-сессии
+        // Сброс поиска поверхности после завершения AR
         renderer.xr.addEventListener('sessionend', () => {
             hitTestSourceRequested = false;
             hitTestSource = null;
@@ -361,4 +331,3 @@
     </script>
 </body>
 </html>
-
