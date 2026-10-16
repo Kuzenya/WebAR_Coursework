@@ -2,67 +2,375 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <title>MindAR Face Tracking</title>
-
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-face-aframe.prod.js"></script>
+    <title>Практика 4 | Three.js WebXR Hit Test</title>
 
     <style>
-        html,
-        body {
+        html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #222;
+            color: white;
         }
 
-        a-scene {
-            position: fixed;
-            top: 0;
-            left: 0;
+        canvas {
+            display: block;
             width: 100%;
             height: 100%;
         }
+
+        #info {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            z-index: 2;
+            padding: 12px 14px;
+            background: rgba(0, 0, 0, 0.65);
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+            pointer-events: none;
+        }
+
+        #home {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 3;
+            color: white;
+            background: #444;
+            text-decoration: none;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        #status {
+            color: #a7f3a7;
+        }
     </style>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
 </head>
 
 <body>
 
-<a-scene
-    mindar-face
-    embedded
-    color-space="sRGB"
-    renderer="colorManagement: true"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false">
+    <div id="info">
+        <strong>Практика 4: Three.js + WebXR Hit Test</strong>
+        <div id="status">Нажмите кнопку AR для запуска.</div>
+        <div>1. Наведите камеру на пол или стол.</div>
+        <div>2. Дождитесь появления кольца.</div>
+        <div>3. Коснитесь экрана, чтобы установить робота.</div>
+    </div>
 
-    <a-assets>
-        <a-asset-item
-            id="glasses-model"
-            src="./models/glasses.glb">
-        </a-asset-item>
-    </a-assets>
+    <a id="home" href="../index.html">← К заданиям</a>
 
-    <a-camera
-        active="false"
-        position="0 0 0">
-    </a-camera>
+    <script type="module">
+        import * as THREE from 'three';
+        import { ARButton } from 'three/addons/webxr/ARButton.js';
 
-    <a-entity mindar-face-target="anchorIndex: 168">
+        let camera;
+        let scene;
+        let renderer;
+        let reticle;
+        let hitTestSource = null;
+        let hitTestSourceRequested = false;
 
-        <a-gltf-model
-            src="#glasses-model"
-            position="0 0 0"
-            rotation="0 0 0"
-            scale="0.01 0.01 0.01">
-        </a-gltf-model>
+        const statusElement = document.getElementById('status');
 
-    </a-entity>
+        function setStatus(message) {
+            statusElement.textContent = message;
+        }
 
-</a-scene>
+        init();
+
+        function init() {
+
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(
+                70,
+                window.innerWidth / window.innerHeight,
+                0.01,
+                20
+            );
+
+            const hemisphereLight = new THREE.HemisphereLight(
+                0xffffff,
+                0xbbbbff,
+                2.5
+            );
+            scene.add(hemisphereLight);
+
+            const directionalLight = new THREE.DirectionalLight(
+                0xffffff,
+                1.5
+            );
+            directionalLight.position.set(1, 3, 2);
+            scene.add(directionalLight);
+
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            renderer.xr.setReferenceSpaceType('local-floor');
+
+            document.body.appendChild(renderer.domElement);
+
+            const arButton = ARButton.createButton(renderer, {
+                requiredFeatures: ['hit-test']
+            });
+
+            document.body.appendChild(arButton);
+
+            const ringGeometry = new THREE.RingGeometry(
+                0.08,
+                0.12,
+                32
+            );
+
+            ringGeometry.rotateX(-Math.PI / 2);
+
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff88,
+                side: THREE.DoubleSide
+            });
+
+            reticle = new THREE.Mesh(ringGeometry, ringMaterial);
+            reticle.matrixAutoUpdate = false;
+            reticle.visible = false;
+            scene.add(reticle);
+
+            // Контроллер принимает событие выбора, в том числе
+            // нажатие на экран в поддерживаемых AR-браузерах.
+            const controller = renderer.xr.getController(0);
+            controller.addEventListener('select', placeObject);
+            scene.add(controller);
+
+            // Начало AR-сессии
+            renderer.xr.addEventListener('sessionstart', () => {
+                hitTestSourceRequested = false;
+                hitTestSource = null;
+                reticle.visible = false;
+
+                setStatus(
+                    'AR запущен. Медленно перемещайте телефон, ' +
+                    'направляя камеру на пол или стол.'
+                );
+            });
+
+            renderer.xr.addEventListener('sessionend', () => {
+                hitTestSourceRequested = false;
+
+                if (hitTestSource) {
+                    hitTestSource.cancel();
+                }
+
+                hitTestSource = null;
+                reticle.visible = false;
+
+                setStatus('AR завершён. Нажмите кнопку AR для повторного запуска.');
+            });
+
+            window.addEventListener('resize', onWindowResize);
+
+            renderer.setAnimationLoop(render);
+        }
+
+        function createRobot() {
+            const robot = new THREE.Group();
+
+            const blueMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2878ff,
+                roughness: 0.55,
+                metalness: 0.1
+            });
+
+            const darkMaterial = new THREE.MeshStandardMaterial({
+                color: 0x263449,
+                roughness: 0.7
+            });
+
+            const orangeMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffa52f,
+                roughness: 0.5
+            });
+
+            const eyeMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0x335577
+            });
+
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.18, 0.22, 0.12),
+                blueMaterial
+            );
+            body.position.y = 0.32;
+            robot.add(body);
+
+            const head = new THREE.Mesh(
+                new THREE.BoxGeometry(0.15, 0.13, 0.13),
+                orangeMaterial
+            );
+            head.position.y = 0.50;
+            robot.add(head);
+
+            for (const x of [-0.035, 0.035]) {
+                const eye = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.014, 12, 12),
+                    eyeMaterial
+                );
+                eye.position.set(x, 0.51, 0.069);
+                robot.add(eye);
+            }
+
+            for (const x of [-0.12, 0.12]) {
+                const arm = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.045, 0.17, 0.05),
+                    darkMaterial
+                );
+                arm.position.set(x, 0.31, 0);
+                robot.add(arm);
+            }
+
+            for (const x of [-0.05, 0.05]) {
+                const leg = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.055, 0.12, 0.07),
+                    darkMaterial
+                );
+                leg.position.set(x, 0.12, 0);
+                robot.add(leg);
+            }
+
+            for (const x of [-0.05, 0.05]) {
+                const foot = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.07, 0.035, 0.10),
+                    orangeMaterial
+                );
+                foot.position.set(x, 0.0175, 0.015);
+                robot.add(foot);
+            }
+
+            return robot;
+        }
+
+        function placeObject() {
+            if (!reticle.visible) {
+                setStatus(
+                    'Поверхность пока не найдена. ' +
+                    'Наведите камеру на пол или стол.'
+                );
+                return;
+            }
+
+            const robot = createRobot();
+
+            reticle.matrix.decompose(
+                robot.position,
+                robot.quaternion,
+                robot.scale
+            );
+
+            scene.add(robot);
+
+            setStatus(
+                'Объект установлен. Перемещайте телефон ' +
+                'для осмотра или коснитесь другой поверхности.'
+            );
+        }
+
+        function render(timestamp, frame) {
+            if (frame) {
+                const session = renderer.xr.getSession();
+                const referenceSpace = renderer.xr.getReferenceSpace();
+
+                if (!hitTestSourceRequested && session) {
+                    hitTestSourceRequested = true;
+
+                    session.requestReferenceSpace('viewer')
+                        .then((viewerSpace) => {
+                            return session.requestHitTestSource({
+                                space: viewerSpace
+                            });
+                        })
+                        .then((source) => {
+                            // Сессия могла завершиться во время запроса.
+                            if (renderer.xr.getSession() === session) {
+                                hitTestSource = source;
+                            } else {
+                                source.cancel();
+                            }
+                        })
+                        .catch((error) => {
+                            console.error('Hit Test error:', error);
+                            setStatus(
+                                'Не удалось запустить поиск поверхностей. ' +
+                                'Проверьте поддержку WebXR Hit Test.'
+                            );
+                            hitTestSourceRequested = false;
+                        });
+                }
+
+                if (hitTestSource && referenceSpace) {
+                    const results = frame.getHitTestResults(hitTestSource);
+
+                    if (results.length > 0) {
+                        const hit = results[0];
+                        const pose = hit.getPose(referenceSpace);
+
+                        if (pose) {
+                            reticle.visible = true;
+                            reticle.matrix.fromArray(
+                                pose.transform.matrix
+                            );
+
+                            setStatus(
+                                'Поверхность найдена. Коснитесь экрана, ' +
+                                'чтобы установить робота.'
+                            );
+                        }
+                    } else {
+                        reticle.visible = false;
+
+                        setStatus(
+                            'Ищем поверхность. Медленно перемещайте ' +
+                            'телефон и направляйте камеру на пол или стол.'
+                        );
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(
+                window.innerWidth,
+                window.innerHeight
+            );
+        }
+    </script>
 
 </body>
 </html>
