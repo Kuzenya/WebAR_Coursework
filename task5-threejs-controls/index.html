@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1e1e24">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231e1e24'/%3E%3Cpath d='M14 32h36M32 14v36' stroke='%2300aaff' stroke-width='8'/%3E%3C/svg%3E">
+    <title>Практика 5: управление AR-объектом</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "../vendor/three/build/three.module.js",
+            "three/addons/": "../vendor/three/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <header id="info" aria-live="polite">
+        <a class="back-link" href="../index.html" aria-label="Вернуться к списку практических работ">← Практики 5–6</a>
+        <strong>Практика 5: управление объектом</strong>
+        <p>Наведите камеру на поверхность и коснитесь экрана, когда появится кольцо. Последний размещённый объект становится активным.</p>
+        <div id="status">Загрузка моделей и HDRI-карты…</div>
+    </header>
+
+    <main id="ui-root">
+        <div id="ar-button" aria-label="Запуск или завершение AR-сессии"></div>
+
+        <details id="control-panel" open>
+            <summary>Управление объектом</summary>
+            <fieldset id="controls" disabled>
+                <legend class="visually-hidden">Параметры активного объекта</legend>
+
+                <div class="control-row">
+                    <label for="model-select">Модель</label>
+                    <select id="model-select">
+                        <option value="cross">Крестик (GLB)</option>
+                        <option value="circle">Нолик (GLB)</option>
+                        <option value="cube">Куб (PBR)</option>
+                    </select>
+                </div>
+
+                <div class="control-row color-row">
+                    <span id="color-label">Цвет</span>
+                    <div class="swatches" role="group" aria-labelledby="color-label">
+                        <button class="swatch selected" type="button" data-color="#00aaff" style="--swatch: #00aaff" aria-label="Голубой" aria-pressed="true"></button>
+                        <button class="swatch" type="button" data-color="#ffcc66" style="--swatch: #ffcc66" aria-label="Жёлтый" aria-pressed="false"></button>
+                        <button class="swatch" type="button" data-color="#ff6685" style="--swatch: #ff6685" aria-label="Розовый" aria-pressed="false"></button>
+                        <button class="swatch" type="button" data-color="#75e6a4" style="--swatch: #75e6a4" aria-label="Зелёный" aria-pressed="false"></button>
+                        <button class="swatch" type="button" data-color="#e0e0e0" style="--swatch: #e0e0e0" aria-label="Светло-серый" aria-pressed="false"></button>
+                    </div>
+                </div>
+
+                <div class="control-row action-row">
+                    <button id="rotate-left" type="button" aria-label="Повернуть активный объект влево на 15 градусов">↺ 15°</button>
+                    <button id="rotate-right" type="button" aria-label="Повернуть активный объект вправо на 15 градусов">15° ↻</button>
+                    <button id="auto-rotate" type="button" aria-pressed="false">Автовращение</button>
+                </div>
+
+                <button id="place-object" class="primary-action" type="button">Разместить новый объект</button>
+            </fieldset>
+        </details>
+    </main>
+
+    <noscript>Для работы WebAR необходимо включить JavaScript.</noscript>
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>
